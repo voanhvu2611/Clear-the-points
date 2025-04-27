@@ -1,0 +1,142 @@
+
+.game-container {
+  text-align: center;
+  background-image: url('https://img.freepik.com/free-vector/vibrant-fluid-gradient-background-with-curvy-shapes_1017-32108.jpg?semt=ais_hybrid&w=740');
+  background-size: cover; 
+  background-position: center; 
+  background-repeat: no-repeat;
+  border: 1px solid white;
+  margin-top: 30px;
+  border-radius: 10px;
+}
+
+.game-area {
+  background-image: url('https://images.pexels.com/photos/7130555/pexels-photo-7130555.jpeg?cs=srgb&dl=pexels-codioful-7130555.jpg&fm=jpg');
+  background-size: cover; 
+  background-position: center; 
+  background-repeat: no-repeat;
+  position: relative;
+  width: 97%;
+  height: 420px;
+  
+  border-radius: 10px;
+  margin: 20px auto;
+  margin-bottom: 30px;
+}
+
+.circle {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  margin: 10px;
+  border-radius: 50%;
+  background-image: url('https://img.freepik.com/free-vector/vibrant-fluid-gradient-background-with-curvy-shapes_1017-32108.jpg?semt=ais_hybrid&w=740');
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.text-center {
+  text-transform: uppercase;
+  font-family:Georgia, 'Times New Roman', Times, serif;
+  color: white;
+}
+.timer, .points {
+  font-size: 25px;
+  font-weight: bold;
+  color: aliceblue;
+  font-family:Arial, Helvetica, sans-serif;
+}
+
+.restart-button {
+  background: linear-gradient(135deg, #6a11cb 0%, #6ea3ff 100%);
+  border: none;
+  color: white;
+  padding: 10px 30px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.restart-button:hover {
+  background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+.points path{
+  color: #a8a8f0;
+}
+.button-container {
+  margin-top: 20px;
+}
+
+.cleared-message {
+  font-size: 24px;
+  color: green;
+  margin-top: 20px;
+}
+
+.modal-header {
+  border-bottom: none;
+}
+.modal-dialog {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  translate: 0 -10%;
+}
+
+.modal-content {
+  width: 400px;
+}
+
+.restart-title {
+  margin-bottom: 30px;
+  font-weight: 500;
+}
+
+.restart-button {
+  margin-right: 10px;
+}
+
+.result-modal-body {
+  text-align: center; 
+  padding: 30px 20px;
+}
+
+.result-title {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #3dbb24;
+}
+
+.result-time {
+  font-size: 20px;
+  margin-bottom: 30px;
+  color: #555;
+  font-weight: bold;
+}
+.time-result {
+  font-size: 25px;
+  margin-bottom: 5px;
+}
+
+.result-button {
+  padding: 10px 30px;
+  font-size: 18px;
+  border-radius: 10px;
+  margin-left: 10px;
+}
+
+#fireworks-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-Events: none;
+  z-Index: 2000;
+}
