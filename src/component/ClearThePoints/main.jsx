@@ -50,11 +50,9 @@ const ClearThePoints = () => {
     const circleSize = 40;
     const padding = 20;
 
-    // Lấy kích thước khu vực trò chơi
     const gameWidth = gameAreaRef.current.clientWidth;
     const gameHeight = gameAreaRef.current.clientHeight;
 
-    // Điều chỉnh để vòng tròn nằm hoàn toàn trong khung
     const maxX = gameWidth - circleSize - padding;
     const maxY = gameHeight - circleSize - padding;
     const minX = padding;
@@ -157,7 +155,6 @@ const ClearThePoints = () => {
     return () => clearInterval(timer);
   }, [gameStarted]);
 
-  // Xử lý khi click vào vòng tròn
   const handleCircleClick = useCallback(
     (id, e) => {
       if (e) {
