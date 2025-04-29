@@ -1,30 +1,60 @@
-import { useState, useEffect, useRef } from "react";
-import { Container, Row, Col, Button, Modal } from "react-bootstrap";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Container, Row, Col, Button, Modal, Form, InputGroup } from "react-bootstrap";
 import { FaCircle } from "react-icons/fa6";
 import { RxLapTimer } from "react-icons/rx";
+import { FaPlay } from "react-icons/fa";
 import confetti from "canvas-confetti";
 
 const ClearThePoints = () => {
   const gameAreaRef = useRef(null);
   const [circles, setCircles] = useState([]);
   const [time, setTime] = useState(0);
-  const [points, setPoints] = useState(10);
+  const [totalPoints, setTotalPoints] = useState(10);
+  const [customPoints, setCustomPoints] = useState("10");
+  const [points, setPoints] = useState(0);
+  const [nextPointToClick, setNextPointToClick] = useState(1);
+
+  const [gameCompleted, setGameCompleted] = useState(false);
+  const [gameReady, setGameReady] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [showRestartModal, setShowRestartModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showGameOverModal, setShowGameOverModal] = useState(false);
+  const [showPointsModal, setShowPointsModal] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  const [autoplayEnabled, setAutoplayEnabled] = useState(false);
+  const autoplayTimerRef = useRef(null);
+
+  const circlesRef = useRef(circles);
+  const nextPointToClickRef = useRef(nextPointToClick);
+  const gameCompletedRef = useRef(gameCompleted);
+
+  useEffect(() => {
+    circlesRef.current = circles;
+  }, [circles]);
+
+  useEffect(() => {
+    nextPointToClickRef.current = nextPointToClick;
+  }, [nextPointToClick]);
+
+  useEffect(() => {
+    gameCompletedRef.current = gameCompleted;
+  }, [gameCompleted]);
+
   // Hàm tạo vị trí ngẫu nhiên cho các vòng tròn
-  const generateRandomPositions = () => {
+  const generateRandomPositions = (numPoints = totalPoints) => {
     if (!gameAreaRef.current) return [];
 
-    const circleCount = 10;
+    const circleCount = numPoints;
     const circleSize = 40;
-    const padding = 30;
+    const padding = 20;
 
+    // Lấy kích thước khu vực trò chơi
     const gameWidth = gameAreaRef.current.clientWidth;
     const gameHeight = gameAreaRef.current.clientHeight;
 
+    // Điều chỉnh để vòng tròn nằm hoàn toàn trong khung
     const maxX = gameWidth - circleSize - padding;
     const maxY = gameHeight - circleSize - padding;
     const minX = padding;
@@ -41,6 +71,8 @@ const ClearThePoints = () => {
       do {
         overlapping = false;
         attempts++;
+
+        // Tạo vị trí ngẫu nhiên
         const left = Math.floor(Math.random() * (maxX - minX)) + minX;
         const top = Math.floor(Math.random() * (maxY - minY)) + minY;
 
@@ -61,6 +93,7 @@ const ClearThePoints = () => {
       positions.push({
         id: i,
         visible: true,
+        fading: false,
         left: newPosition.left,
         top: newPosition.top,
       });
@@ -73,7 +106,7 @@ const ClearThePoints = () => {
     if (!isInitialized) {
       const initializeCircles = () => {
         if (gameAreaRef.current) {
-          const newPositions = generateRandomPositions();
+          const newPositions = generateRandomPositions(totalPoints);
           setCircles(newPositions);
           setIsInitialized(true);
         }
@@ -83,28 +116,35 @@ const ClearThePoints = () => {
 
       return () => clearTimeout(initTimer);
     }
-  }, [isInitialized, gameAreaRef.current]);
+  }, [isInitialized, totalPoints]);
+
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
-      if (gameStarted) return;
+      if (gameStarted || !gameReady) return;
 
-      const timer = setTimeout(() => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+
+      debounceRef.current = setTimeout(() => {
         if (gameAreaRef.current) {
-          const newPositions = generateRandomPositions();
+          const newPositions = generateRandomPositions(totalPoints);
           setCircles(newPositions);
         }
       }, 200);
-
-      return () => clearTimeout(timer);
     };
 
     window.addEventListener("resize", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
-  }, [gameStarted]);
+  }, [gameStarted, gameReady, totalPoints]);
 
   // Đồng hồ đếm thời gian
   useEffect(() => {
@@ -118,95 +158,235 @@ const ClearThePoints = () => {
   }, [gameStarted]);
 
   // Xử lý khi click vào vòng tròn
-  const handleCircleClick = (id, e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+  const handleCircleClick = useCallback(
+    (id, e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      if (gameCompletedRef.current) return;
+
+      if (id !== nextPointToClickRef.current) {
+        setGameStarted(false);
+        setAutoplayEnabled(false);
+        clearInterval(autoplayTimerRef.current);
+        setShowGameOverModal(true);
+        return;
+      }
+
+      setCircles((prevCircles) =>
+        prevCircles.map((circle) =>
+          circle.id === id ? { ...circle, fading: true } : circle
+        )
+      );
+
+      setTimeout(() => {
+        setCircles((prevCircles) =>
+          prevCircles.map((circle) =>
+            circle.id === id
+              ? { ...circle, visible: false, fading: false }
+              : circle
+          )
+        );
+      }, 1000);
+
+      setPoints((prevPoints) => prevPoints - 1);
+
+      // Kiểm tra điểm cuối cùng
+      if (id === totalPoints) {
+        setGameCompleted(true);
+
+        setTimeout(() => {
+          setShowResultModal(true);
+          setGameStarted(false);
+
+          // Tạo hiệu ứng pháo hoa
+          showFireworks();
+        }, 1000);
+
+        if (autoplayTimerRef.current) {
+          clearInterval(autoplayTimerRef.current);
+          autoplayTimerRef.current = null;
+        }
+      } else {
+        setNextPointToClick((prev) => prev + 1);
+      }
+    },
+    [totalPoints]
+  );
+
+  // Hiệu ứng pháo hoa
+  const showFireworks = () => {
+    const canvas = document.getElementById("fireworks-canvas");
+    if (!canvas) return;
+
+    const myConfetti = confetti.create(canvas, {
+      resize: true,
+      useWorker: true,
+    });
+
+    const duration = 3 * 1000; // Thời gian pháo hoa kéo dài 3 giây
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+    function randomInRange(min, max) {
+      return Math.random() * (max - min) + min;
     }
 
-    if (!gameStarted) {
-      setGameStarted(true);
+    const interval = setInterval(function () {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        return;
+      }
+
+      myConfetti({
+        ...defaults,
+        particleCount: 50,
+        origin: {
+          x: randomInRange(0.1, 0.9),
+          y: randomInRange(0.1, 0.5),
+        },
+        colors: ["#bb0000", "#ffffff", "#00bbff", "#ffbb00", "#00ffbb"],
+      });
+    }, 250);
+  };
+
+  const handlePlay = () => {
+    setShowPointsModal(true);
+  };
+
+  const handleStartGame = () => {
+    const numPoints = parseInt(customPoints);
+    const validPoints = isNaN(numPoints)
+      ? 10
+      : Math.min(Math.max(numPoints, 1));
+
+    setTotalPoints(validPoints);
+    setPoints(validPoints);
+    setCustomPoints(validPoints.toString());
+
+    const newPositions = generateRandomPositions(validPoints);
+    setCircles(newPositions);
+
+    setGameReady(true);
+    setNextPointToClick(1);
+    setGameStarted(true);
+    setGameCompleted(false);
+    setShowPointsModal(false);
+
+    if (autoplayEnabled) {
+      startAutoplay();
     }
+  };
 
-    setCircles((prevCircles) =>
-      prevCircles.map((circle) =>
-        circle.id === id ? { ...circle, visible: false } : circle
-      )
-    );
+  const handlePointsChange = (e) => {
+    const value = e.target.value.replace(/[^0-9]/g, "");
+    const numberValue = parseInt(value, 10);
 
-    setPoints((prevPoints) => prevPoints - 1);
+    if (numberValue > 0) {
+      setCustomPoints(numberValue.toString());
+    } else {
+      setCustomPoints("");
+    }
   };
 
   const handleRestart = () => {
-    const newPositions = generateRandomPositions();
-    setCircles(newPositions);
+    const newPositions = generateRandomPositions(totalPoints);
+
+    if (autoplayTimerRef.current) {
+      clearInterval(autoplayTimerRef.current);
+      autoplayTimerRef.current = null;
+    }
     setTime(0);
-    setPoints(10);
+    setCircles(newPositions);
+    setPoints(totalPoints);
     setGameStarted(false);
+    setGameReady(false);
+    setNextPointToClick(1);
+    setGameCompleted(false);
     setShowRestartModal(false);
     setShowResultModal(false);
+    setAutoplayEnabled(false);
+    setShowGameOverModal(false);
   };
 
-  // Hiệu ứng khi hoàn thành trò chơi
-  useEffect(() => {
-    if (
-      circles.length > 0 &&
-      circles.every((circle) => !circle.visible) &&
-      gameStarted
-    ) {
-      setShowResultModal(true);
-      setGameStarted(false);
+  const startAutoplay = useCallback(() => {
+    if (autoplayTimerRef.current) {
+      clearInterval(autoplayTimerRef.current);
+    }
 
-      // Tạo hiệu ứng pháo hoa
-      const canvas = document.getElementById("fireworks-canvas");
-      if (!canvas) return;
+    autoplayTimerRef.current = setInterval(() => {
+      const nextPoint = nextPointToClickRef.current;
+      const currentCircles = circlesRef.current;
+      const isGameCompleted = gameCompletedRef.current;
 
-      const myConfetti = confetti.create(canvas, {
-        resize: true,
-        useWorker: true,
-      });
-
-      const duration = 5 * 1000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-      function randomInRange(min, max) {
-        return Math.random() * (max - min) + min;
+      if (isGameCompleted) {
+        clearInterval(autoplayTimerRef.current);
+        autoplayTimerRef.current = null;
+        return;
       }
 
-      const interval = setInterval(function () {
-        const timeLeft = animationEnd - Date.now();
+      const nextCircle = currentCircles.find(
+        (circle) => circle.id === nextPoint && circle.visible
+      );
 
-        if (timeLeft <= 0) {
-          clearInterval(interval);
-          return;
-        }
+      if (nextCircle) {
+        handleCircleClick(nextPoint);
+      } else {
+        clearInterval(autoplayTimerRef.current);
+        autoplayTimerRef.current = null;
+        setAutoplayEnabled(false);
+      }
+    }, 300);
+  }, [handleCircleClick]);
 
-        myConfetti({
-          ...defaults,
-          particleCount: 50,
-          origin: {
-            x: randomInRange(0.1, 0.9),
-            y: randomInRange(0.1, 0.5),
-          },
-          colors: ["#bb0000", "#ffffff", "#00bbff", "#ffbb00", "#00ffbb"],
-        });
-      }, 250);
+  const toggleAutoplay = () => {
+    if (!gameStarted) {
+      setAutoplayEnabled(!autoplayEnabled);
+      return;
     }
-  }, [circles, gameStarted]);
+
+    if (!autoplayEnabled) {
+      setAutoplayEnabled(true);
+      startAutoplay();
+    } else {
+      setAutoplayEnabled(false);
+      if (autoplayTimerRef.current) {
+        clearInterval(autoplayTimerRef.current);
+        autoplayTimerRef.current = null;
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (autoplayTimerRef.current) {
+        clearInterval(autoplayTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (gameStarted && autoplayEnabled && !autoplayTimerRef.current) {
+      startAutoplay();
+    }
+  }, [gameStarted, autoplayEnabled, startAutoplay]);
 
   return (
-    <Container className="game-container">
+    <Container className="game-container" fluid>
       <h1 className="text-center my-4">Clear The Points</h1>
 
       <Row className="mb-3">
-        <Col xs={6} className="text-right">
+        <Col xs={6} className="text-left">
           <p className="timer">
             <RxLapTimer />
             &nbsp;: {time.toFixed(1)}s
           </p>
         </Col>
-        <Col xs={6} className="text-left">
+        <Col xs={6} className="text-right">
           <p className="points">
             <FaCircle />
             &nbsp;: {points} Points
@@ -214,31 +394,63 @@ const ClearThePoints = () => {
         </Col>
       </Row>
 
-      <Button
-        variant="primary"
-        onClick={() => setShowRestartModal(true)}
-        className="restart-button mb-4 d-block mx-auto"
-      >
-        Restart
-      </Button>
+      <Row className="mb-3 justify-content-center">
+        {!gameReady ? (
+          <Button
+            variant="success"
+            onClick={handlePlay}
+            className="play-button"
+            size="lg"
+          >
+            <FaPlay /> Play
+          </Button>
+        ) : (
+          <div className="text-center">
+            {!gameCompleted && (
+              <span className="next-point-indicator">
+                Next point: {nextPointToClick}
+              </span>
+            )}
+            <Button
+              variant="primary"
+              onClick={() => setShowRestartModal(true)}
+              className="restart-button mx-2"
+            >
+              Restart
+            </Button>
+
+            <Button
+              variant={autoplayEnabled ? "danger" : "secondary"}
+              onClick={toggleAutoplay}
+              className="autoplay-button mx-2"
+              disabled={gameCompleted}
+            >
+              {autoplayEnabled ? "AutoPlay: ON" : "AutoPlay: OFF"}
+            </Button>
+          </div>
+        )}
+      </Row>
 
       <div className="game-area" ref={gameAreaRef}>
-        {circles.map(
-          (circle) =>
-            circle.visible && (
-              <div
-                key={circle.id}
-                onClick={(e) => handleCircleClick(circle.id, e)}
-                className="circle"
-                style={{
-                  left: `${circle.left}px`,
-                  top: `${circle.top}px`,
-                }}
-              >
-                {circle.id}
-              </div>
-            )
-        )}
+        {gameReady &&
+          circles.map(
+            (circle) =>
+              circle.visible && (
+                <div
+                  key={circle.id}
+                  onClick={(e) => handleCircleClick(circle.id, e)}
+                  className={`circle ${
+                    circle.id === nextPointToClick ? "next-to-click" : ""
+                  } ${circle.fading ? "fading" : ""}`}
+                  style={{
+                    left: `${circle.left}px`,
+                    top: `${circle.top}px`,
+                  }}
+                >
+                  {circle.id}
+                </div>
+              )
+          )}
       </div>
 
       {/* Modal xác nhận khởi động lại */}
@@ -252,10 +464,10 @@ const ClearThePoints = () => {
 
           <Button
             variant="secondary"
-            className=""
+            className="cancel-button"
             onClick={() => setShowRestartModal(false)}
           >
-            No
+            Cancel
           </Button>
 
           <Button
@@ -263,7 +475,7 @@ const ClearThePoints = () => {
             className="result-button"
             onClick={handleRestart}
           >
-            Yes
+            Confirm
           </Button>
         </Modal.Body>
       </Modal>
@@ -287,6 +499,71 @@ const ClearThePoints = () => {
             Play Again
           </Button>
         </Modal.Body>
+      </Modal>
+
+      {/* Modal Game Over */}
+      <Modal
+        show={showGameOverModal}
+        onHide={() => setShowGameOverModal(false)}
+        centered
+      >
+        <Modal.Body className="result-modal-body">
+          <h2 className="result-title" style={{ color: "#dc3545" }}>
+            GAME OVER!
+          </h2>
+          <p className="result-message">You clicked the wrong number!</p>
+          <Button
+            variant="danger"
+            className="result-button"
+            onClick={handleRestart}
+          >
+            Try Again
+          </Button>
+        </Modal.Body>
+      </Modal>
+
+      {/* Modal nhập số điểm */}
+      <Modal
+        show={showPointsModal}
+        onHide={() => setShowPointsModal(false)}
+        centered
+        backdrop="static"
+      >
+        <Modal.Header>
+          <Modal.Title>Set Number of Points</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group>
+              <Form.Label>How many points do you want to play with?</Form.Label>
+              <InputGroup>
+                <Form.Control
+                  type="text"
+                  value={customPoints}
+                  onChange={handlePointsChange}
+                  placeholder="Enter number of points"
+                  aria-label="Number of points"
+                  aria-describedby="points-addon"
+                />
+                <InputGroup.Text id="points-addon">
+                  <FaCircle className="fa-1" />
+                </InputGroup.Text>
+              </InputGroup>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowPointsModal(false)}>
+            Cancel
+          </Button>
+          <Button
+            className="start-game"
+            variant="success"
+            onClick={handleStartGame}
+          >
+            Start Game
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       {/* Canvas cho hiệu ứng pháo hoa */}
