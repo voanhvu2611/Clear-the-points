@@ -42,7 +42,6 @@ const ClearThePoints = () => {
     gameCompletedRef.current = gameCompleted;
   }, [gameCompleted]);
 
-  // Hàm tạo vị trí ngẫu nhiên cho các vòng tròn
   const generateRandomPositions = (numPoints = totalPoints) => {
     if (!gameAreaRef.current) return [];
 
@@ -69,8 +68,6 @@ const ClearThePoints = () => {
       do {
         overlapping = false;
         attempts++;
-
-        // Tạo vị trí ngẫu nhiên
         const left = Math.floor(Math.random() * (maxX - minX)) + minX;
         const top = Math.floor(Math.random() * (maxY - minY)) + minY;
 
@@ -190,7 +187,6 @@ const ClearThePoints = () => {
 
       setPoints((prevPoints) => prevPoints - 1);
 
-      // Kiểm tra điểm cuối cùng
       if (id === totalPoints) {
         setGameCompleted(true);
 
@@ -480,8 +476,10 @@ const ClearThePoints = () => {
       {/* Modal hiển thị kết quả */}
       <Modal
         show={showResultModal}
-        onHide={() => setShowResultModal(false)}
+        onHide={handleRestart}
         centered
+        backdrop={true}
+        keyboard={true}
       >
         <Modal.Body className="result-modal-body">
           <h2 className="result-title">ALL CLEARED!!!</h2>
